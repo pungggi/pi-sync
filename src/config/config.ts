@@ -1,5 +1,7 @@
 import { DEFAULT_BRANCH } from "../domain/constants.js";
 import type { PartialConfig, SyncConfig } from "../domain/types.js";
+import { SyncConfigSchema, PartialConfigSchema } from "../schemas/config.js";
+import { validateAndConvert } from "../schemas/validate.js";
 import { readJsonIfExists } from "../utils/json-utils.js";
 import { localConfigPath } from "../utils/path-utils.js";
 
@@ -16,12 +18,15 @@ export async function loadConfig(): Promise<SyncConfig> {
     );
   }
 
-  return {
+  const combined = {
     repository,
     branch: partial.branch ?? DEFAULT_BRANCH,
     autoSync: partial.autoSync ?? true,
     secrets: partial.secrets ?? false,
   };
+
+  // Validate the merged config against the TypeBox schema.
+  return validateAndConvert(SyncConfigSchema, combined, "pi-sync config");
 }
 
 /**
@@ -31,7 +36,7 @@ export async function loadPartialConfig(): Promise<PartialConfig> {
   const fileConfig =
     (await readJsonIfExists<PartialConfig>(localConfigPath())) ?? {};
 
-  return {
+  const merged = {
     ...fileConfig,
     repository:
       process.env.PI_SYNC_REPOSITORY ??
@@ -41,6 +46,9 @@ export async function loadPartialConfig(): Promise<PartialConfig> {
     autoSync: process.env.PI_SYNC_AUTO_SYNC ?? fileConfig.autoSync,
     secrets: process.env.PI_SYNC_SECRETS ?? fileConfig.secrets,
   };
+
+  // Validate the merged partial config against the TypeBox schema.
+  return validateAndConvert(PartialConfigSchema, merged, "pi-sync config");
 }
 
 /**
