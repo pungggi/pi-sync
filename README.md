@@ -16,7 +16,7 @@ Use pi-sync when you want to:
 
 ## Prerequisites
 
-- Pi coding agent installed.
+- **Pi coding agent ≥ 0.83.0** (recommended; older versions work but lack scoped-model credential checks in `/pisync doctor`).
 - `git` installed and available in your shell.
 - A **private** Git repository for synced Pi configuration.
 - For GitHub HTTPS repositories, GitHub CLI (`gh`) is recommended so Git can reuse your existing GitHub login.
@@ -141,7 +141,7 @@ Command guide:
 | Command                         | Use it when                                                           |
 | ------------------------------- | --------------------------------------------------------------------- |
 | `/pisync init`                  | Configure pi-sync for this machine.                                   |
-| `/pisync doctor`                | Verify config, Git access, secret scan, and lock status.              |
+| `/pisync doctor`                | Verify config, Git access, secret scan, scoped model credentials, and lock status. |
 | `/pisync status [--verbose]`    | Check local/remote drift and optionally list changed paths.           |
 | `/pisync diff`                  | Review textual differences before pushing or pulling.                 |
 | `/pisync push`                  | Publish local Pi settings to the Git repo.                            |
