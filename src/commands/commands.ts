@@ -32,6 +32,10 @@ import { errorMessage } from "../utils/json-utils.js";
 import { localConfigPath, repoDir, stateDir } from "../utils/path-utils.js";
 import { isEnabled, parseOptions, splitArgs, usage } from "./args.js";
 import { repositoryAccessReport } from "./auth.js";
+import {
+  checkScopedModelsCredentials,
+  formatCredentialsReport,
+} from "../checks/models-credentials.js";
 import { syncInputs } from "./context.js";
 import { setSyncFooter, syncDrift } from "./footer-status.js";
 import { initConfig } from "./init.js";
@@ -241,10 +245,12 @@ async function diff(ctx: ExtensionCommandContext): Promise<void> {
 async function doctor(ctx: ExtensionCommandContext): Promise<void> {
   const messages: string[] = [];
   let level: "info" | "warning" = "info";
+  let secretsEnabled = false;
 
   try {
     const config = await loadConfig();
 
+    secretsEnabled = isEnabled(config.secrets, false);
     messages.push(
       `config: ok (${config.repository}#${config.branch}/repo-root)`,
     );
@@ -268,6 +274,7 @@ async function doctor(ctx: ExtensionCommandContext): Promise<void> {
   }
 
   await appendLocalChecks(messages);
+  appendScopedModelsCheck(messages, ctx, secretsEnabled);
   ctx.ui.notify(messages.join("\n"), level);
 }
 
@@ -335,4 +342,20 @@ async function appendLocalChecks(messages: string[]): Promise<void> {
       ? `lock: held by pid ${lock.pid} since ${lock.startedAt}`
       : "lock: free",
   );
+}
+
+function appendScopedModelsCheck(
+  messages: string[],
+  ctx: ExtensionCommandContext,
+  secretsEnabled: boolean,
+): void {
+  try {
+    const report = checkScopedModelsCredentials(ctx.scopedModels);
+
+    messages.push(...formatCredentialsReport(report, secretsEnabled));
+  } catch {
+    messages.push(
+      "scoped model credentials: unavailable (requires pi >= 0.83.0)",
+    );
+  }
 }

@@ -2,6 +2,8 @@ import type { ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
 
 import { ACTIVITY_STATUS_KEY } from "../domain/constants.js";
 import type { CommandOptions } from "../domain/types.js";
+import { SecretsArgsSchema, validateSecretsArgs } from "../schemas/secrets.js";
+import { validateAndConvert } from "../schemas/validate.js";
 import { SecretsOperations } from "../secrets/operations.js";
 import { withLock } from "../state/lock.js";
 import { errorMessage } from "../utils/json-utils.js";
@@ -19,8 +21,30 @@ export async function handleSecretsCommand(
   const [action = "list", ...rest] = options.args;
   const opsOptions = { yes: options.yes, silent: options.silent };
 
+  // Validate subcommand + optional provider with TypeBox.
+  const parsed = validateAndConvert(
+    SecretsArgsSchema,
+    { subcommand: action, provider: rest[0] },
+    "secrets arguments",
+    false,
+  );
+
+  if (parsed == null) {
+    ctx.ui.notify(secretsUsage(), "warning");
+
+    return;
+  }
+
+  const constraintError = validateSecretsArgs(parsed);
+
+  if (constraintError !== null) {
+    ctx.ui.notify(constraintError, "warning");
+
+    return;
+  }
+
   try {
-    await runSecretsAction(action, rest, opsOptions, ctx);
+    await runSecretsAction(parsed, opsOptions, ctx);
   } catch (error) {
     ctx.ui.setStatus(ACTIVITY_STATUS_KEY, undefined);
     ctx.ui.notify(errorMessage(error), "error");
@@ -28,21 +52,20 @@ export async function handleSecretsCommand(
 }
 
 async function runSecretsAction(
-  action: string,
-  positional: string[],
+  args: { subcommand: string; provider?: string },
   options: { yes: boolean; silent: boolean },
   ctx: ExtensionCommandContext,
 ): Promise<void> {
   const ops = (): SecretsOperations => new SecretsOperations(ctx, options);
 
-  switch (action) {
+  switch (args.subcommand) {
     case "help":
       ctx.ui.notify(secretsUsage(), "info");
 
       return;
 
     case "setup":
-      await runSetup(ops, positional, ctx);
+      await runSetup(ops, args.provider, ctx);
 
       return;
 
@@ -72,7 +95,7 @@ async function runSecretsAction(
 
     default:
       ctx.ui.notify(
-        `Unknown /pisync secrets command: ${action}\n\n${secretsUsage()}`,
+        `Unknown /pisync secrets command: ${args.subcommand}\n\n${secretsUsage()}`,
         "warning",
       );
   }
@@ -80,13 +103,12 @@ async function runSecretsAction(
 
 async function runSetup(
   ops: () => SecretsOperations,
-  positional: string[],
+  provider: string | undefined,
   ctx: ExtensionCommandContext,
 ): Promise<void> {
-  const provided = positional[0];
   const passphrase =
-    provided !== ""
-      ? provided
+    provider && provider !== ""
+      ? provider
       : await ctx.ui.input(
           "Secrets passphrase",
           "Enter the passphrase used on your other machine, or pick a new one for your first machine.",

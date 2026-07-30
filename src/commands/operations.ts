@@ -295,10 +295,17 @@ export class SyncOperations {
     this.ctx.ui.setStatus(ACTIVITY_STATUS_KEY, undefined);
 
     if (!this.options.silent) {
-      this.ctx.ui.notify(
+      const parts = [
         `Pulled ${remote.files.length} files from ${remote.id}. Backup: ${backup}`,
-        "info",
-      );
+      ];
+
+      if (remoteHasModelsJson(remote)) {
+        parts.push(
+          "models.json was synced — run /pisync doctor to verify provider credentials.",
+        );
+      }
+
+      this.ctx.ui.notify(parts.join("\n"), "info");
     }
 
     if (this.options.reload) {
@@ -495,4 +502,8 @@ function formatPushSummary(
     remote != null ? `Remote latest: ${remote.id}` : "Remote latest: empty",
     "Possible secrets were scanned before this prompt.",
   ].join("\n");
+}
+
+function remoteHasModelsJson(remote: Snapshot): boolean {
+  return remote.files.some((f) => f.path === "models.json");
 }

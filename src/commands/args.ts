@@ -1,4 +1,6 @@
 import type { CommandOptions } from "../domain/types.js";
+import { CommandOptionsSchema } from "../schemas/options.js";
+import { validateAndConvert } from "../schemas/validate.js";
 
 /**
  * Split a command argument string while preserving quoted segments.
@@ -19,7 +21,7 @@ export function splitArgs(input: string): string[] {
  * @param args Tokenized command arguments.
  */
 export function parseOptions(args: string[]): CommandOptions {
-  return {
+  const raw = {
     yes: args.includes("--yes") || args.includes("-y"),
     force: args.includes("--force"),
     stale: args.includes("--stale"),
@@ -28,6 +30,9 @@ export function parseOptions(args: string[]): CommandOptions {
     reload: true,
     args: args.filter((arg) => !arg.startsWith("-")),
   };
+
+  // Validate and apply defaults via TypeBox.
+  return validateAndConvert(CommandOptionsSchema, raw, "command options");
 }
 
 /**
