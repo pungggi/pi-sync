@@ -10,6 +10,7 @@ import type {
 import { loadConfig } from "../config/config.js";
 import {
   AGE_RECIPIENT_VARIABLE,
+  PROVIDERS_MANIFEST_VARIABLE,
   SECRETS_VARIABLE_PREFIX,
 } from "../domain/constants.js";
 import {
@@ -107,9 +108,26 @@ export class SecretsOperations {
       return;
     }
 
+    const collisions: string[] = [];
+    const manifest = new Map<string, string>();
+
+    // Map providers to GitHub-safe variable names; distinct providers that
+    // sanitize to the same variable name cannot both sync.
+    for (const provider of providers) {
+      const variable = this.variableName(provider);
+      const claimed = manifest.get(variable);
+
+      if (claimed !== undefined && claimed !== provider) {
+        collisions.push(`${provider} (collides with ${claimed} on ${variable})`);
+        continue;
+      }
+
+      manifest.set(variable, provider);
+    }
+
     let pushed = 0;
 
-    for (const provider of providers) {
+    for (const [variable, provider] of manifest) {
       const value = readAuthProviderKey(provider);
 
       if (value === undefined) {
@@ -118,11 +136,26 @@ export class SecretsOperations {
 
       const ciphertext = await encryptForRecipient(recipient, value);
 
-      await setVariable(repo, this.variableName(provider), ciphertext);
+      await setVariable(repo, variable, ciphertext);
       pushed += 1;
     }
 
-    this.notify(`Synced ${pushed} encrypted provider key(s).`, "info");
+    // Publish exact provider names so pulls can restore hyphens and case.
+    await setVariable(
+      repo,
+      PROVIDERS_MANIFEST_VARIABLE,
+      JSON.stringify(Object.fromEntries(manifest)),
+    );
+
+    this.notify(
+      [
+        `Synced ${pushed} encrypted provider key(s).`,
+        ...(collisions.length > 0
+          ? [`Skipped due to variable-name collisions: ${collisions.join("; ")}`]
+          : []),
+      ].join("\n"),
+      collisions.length > 0 ? "warning" : "info",
+    );
   }
 
   /**
@@ -134,6 +167,7 @@ export class SecretsOperations {
   async pullAll(key?: ResolvedKey): Promise<void> {
     const { repo } = await this.prepareRead();
     const resolved = key ?? (await this.resolveKey());
+    const manifest = await this.readProvidersManifest(repo);
     const variables = (await listVariables(repo))
       .filter((entry) => entry.name.startsWith(SECRETS_VARIABLE_PREFIX))
       .map((entry) => entry.name);
@@ -155,18 +189,19 @@ export class SecretsOperations {
         continue;
       }
 
+      const provider =
+        manifest.get(variable) ?? this.providerFromVariable(variable);
+
       try {
         const plaintext = await decryptWithIdentity(
           ciphertext,
           resolved.identityPath,
         );
 
-        writeAuthProviderKey(this.providerFromVariable(variable), plaintext);
+        writeAuthProviderKey(provider, plaintext);
         pulled += 1;
       } catch (error) {
-        failures.push(
-          `${this.providerFromVariable(variable)}: ${(error as Error).message}`,
-        );
+        failures.push(`${provider}: ${(error as Error).message}`);
       }
     }
 
@@ -201,6 +236,9 @@ export class SecretsOperations {
    */
   async list(): Promise<void> {
     const { repo } = await this.prepareRead();
+    const manifest = await this.readProvidersManifest(repo);
+    const providerOf = (variable: string): string =>
+      manifest.get(variable) ?? this.providerFromVariable(variable);
     const variables = (await listVariables(repo))
       .filter((entry) => entry.name.startsWith(SECRETS_VARIABLE_PREFIX))
       .map((entry) => entry.name);
@@ -212,7 +250,7 @@ export class SecretsOperations {
       lines.push("Tracked encrypted secrets:");
 
       for (const variable of variables) {
-        const name = this.providerFromVariable(variable);
+        const name = providerOf(variable);
         const local = readAuthProviderKey(name) !== undefined;
 
         lines.push(
@@ -223,9 +261,7 @@ export class SecretsOperations {
       lines.push("Tracked encrypted secrets: none yet.");
     }
 
-    const tracked = new Set(
-      variables.map((variable) => this.providerFromVariable(variable)),
-    );
+    const tracked = new Set(variables.map((variable) => providerOf(variable)));
     const untracked = localProviders.filter((name) => !tracked.has(name));
 
     if (untracked.length > 0) {
@@ -337,13 +373,53 @@ export class SecretsOperations {
   }
 
   private variableName(provider: string): string {
-    // GitHub repository variables are forced to UPPERCASE; provider names are
-    // restored to lowercase on pull (all Pi provider names are lowercase).
-    return `${SECRETS_VARIABLE_PREFIX}${provider.toUpperCase()}`;
+    // GitHub variable names allow only alphanumerics and underscores, so
+    // sanitize everything else. Exact provider names round-trip through the
+    // PISYNC_PROVIDERS manifest; the lowercase fallback only applies to
+    // variables written before the manifest existed.
+    const suffix = provider.toUpperCase().replace(/[^A-Z0-9_]/g, "_");
+
+    return `${SECRETS_VARIABLE_PREFIX}${suffix}`;
   }
 
   private providerFromVariable(variable: string): string {
     return variable.slice(SECRETS_VARIABLE_PREFIX.length).toLowerCase();
+  }
+
+  /**
+   * Read the variable-to-provider manifest published by the last push.
+   *
+   * @param repo GitHub repository (`owner/name`).
+   * @returns Map of secret variable name to exact provider name. Empty when
+   *   the manifest is missing or malformed.
+   */
+  private async readProvidersManifest(
+    repo: string,
+  ): Promise<Map<string, string>> {
+    const map = new Map<string, string>();
+    const raw = await getVariable(repo, PROVIDERS_MANIFEST_VARIABLE);
+
+    if (raw === undefined) {
+      return map;
+    }
+
+    try {
+      const parsed: unknown = JSON.parse(raw);
+
+      if (parsed !== null && typeof parsed === "object") {
+        for (const [variable, provider] of Object.entries(
+          parsed as Record<string, unknown>,
+        )) {
+          if (typeof provider === "string") {
+            map.set(variable, provider);
+          }
+        }
+      }
+    } catch {
+      // Malformed manifest: fall back to the legacy lowercase mapping.
+    }
+
+    return map;
   }
 
   private notify(message: string, level: "info" | "warning" | "error"): void {

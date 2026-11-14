@@ -32,6 +32,12 @@ export const SECRET_PATTERNS = [
 export const SECRETS_VARIABLE_PREFIX = "PISYNC_SECRET_";
 export const AGE_RECIPIENT_VARIABLE = "PISYNC_AGE_RECIPIENT";
 
+/**
+ * JSON manifest mapping sanitized secret variable names back to exact
+ * provider names, so names with hyphens or uppercase round-trip correctly.
+ */
+export const PROVIDERS_MANIFEST_VARIABLE = "PISYNC_PROVIDERS";
+
 export const AUTO_SYNC_OPTIONS: CommandOptions = {
   yes: true,
   force: false,

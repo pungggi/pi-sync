@@ -226,6 +226,7 @@ Keys are encrypted locally with [age](https://age-encryption.org) and stored as 
 - The passphrase is deterministically derived (scrypt) into an age identity, cached locally at `~/.pi/agent/.pisync/age-identity.txt`. The passphrase itself is never stored or synced.
 - The derived recipient (public key) is published to GitHub Variable `PISYNC_AGE_RECIPIENT` so every machine encrypts to the same key.
 - Every provider key in `~/.pi/agent/auth.json` with `type: "api_key"` (e.g. `zai`, `xai`) is encrypted into `PISYNC_SECRET_<PROVIDER>` on push and decrypted back into `auth.json` on pull — exactly where Pi reads them.
+- GitHub variable names allow only alphanumerics and underscores: provider names are uppercased with other characters mapped to `_` (for example `kimi-coding` becomes `PISYNC_SECRET_KIMI_CODING`). A `PISYNC_PROVIDERS` manifest variable restores the exact provider names on pull.
 
 ### Quick start
 
