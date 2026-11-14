@@ -2,7 +2,7 @@ import type { ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
 
 import { ACTIVITY_STATUS_KEY } from "../domain/constants.js";
 import type { CommandOptions } from "../domain/types.js";
-import { SecretsArgsSchema, validateSecretsArgs } from "../schemas/secrets.js";
+import { SecretsArgsSchema } from "../schemas/secrets.js";
 import { validateAndConvert } from "../schemas/validate.js";
 import { SecretsOperations } from "../secrets/operations.js";
 import { withLock } from "../state/lock.js";
@@ -31,14 +31,6 @@ export async function handleSecretsCommand(
 
   if (parsed == null) {
     ctx.ui.notify(secretsUsage(), "warning");
-
-    return;
-  }
-
-  const constraintError = validateSecretsArgs(parsed);
-
-  if (constraintError !== null) {
-    ctx.ui.notify(constraintError, "warning");
 
     return;
   }
@@ -107,7 +99,7 @@ async function runSetup(
   ctx: ExtensionCommandContext,
 ): Promise<void> {
   const passphrase =
-    provider && provider !== ""
+    provider !== undefined && provider !== ""
       ? provider
       : await ctx.ui.input(
           "Secrets passphrase",

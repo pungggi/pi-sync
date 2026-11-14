@@ -3,6 +3,10 @@ import path from "node:path";
 
 import type { ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
 
+import {
+  checkScopedModelsCredentials,
+  formatCredentialsReport,
+} from "../checks/models-credentials.js";
 import { loadConfig, loadPartialConfig } from "../config/config.js";
 import {
   ACTIVITY_STATUS_KEY,
@@ -32,10 +36,6 @@ import { errorMessage } from "../utils/json-utils.js";
 import { localConfigPath, repoDir, stateDir } from "../utils/path-utils.js";
 import { isEnabled, parseOptions, splitArgs, usage } from "./args.js";
 import { repositoryAccessReport } from "./auth.js";
-import {
-  checkScopedModelsCredentials,
-  formatCredentialsReport,
-} from "../checks/models-credentials.js";
 import { syncInputs } from "./context.js";
 import { setSyncFooter, syncDrift } from "./footer-status.js";
 import { initConfig } from "./init.js";

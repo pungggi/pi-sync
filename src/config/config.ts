@@ -1,6 +1,6 @@
 import { DEFAULT_BRANCH } from "../domain/constants.js";
 import type { PartialConfig, SyncConfig } from "../domain/types.js";
-import { SyncConfigSchema, PartialConfigSchema } from "../schemas/config.js";
+import { PartialConfigSchema,SyncConfigSchema } from "../schemas/config.js";
 import { validateAndConvert } from "../schemas/validate.js";
 import { readJsonIfExists } from "../utils/json-utils.js";
 import { localConfigPath } from "../utils/path-utils.js";
