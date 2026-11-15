@@ -476,8 +476,8 @@ function hasDiverged(
 ): boolean {
   return (
     hasLocalChanges(local, state) &&
-    remote.id !== state.lastAppliedSnapshot &&
-    state.lastAppliedSnapshot != null
+    state.lastAppliedSnapshot != null &&
+    remoteChangedSinceState(remote, state)
   );
 }
 

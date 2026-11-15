@@ -41,6 +41,7 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "typecheck": "tsc --noEmit",
+    "test": "node --import ./tests/register-ts.mjs --test",
     "format": "prettier . --write",
     "format:check": "prettier . --check"
   },

@@ -47,6 +47,10 @@ export function hasLocalChanges(local: Snapshot, state: SyncState): boolean {
 /**
  * Check whether remote state differs from last synced state.
  *
+ * Compares snapshot identity first, then file contents: a remote commit
+ * that only moved (history rewrite, non-synced files, re-published
+ * identical content) does not count as changed and never blocks a push.
+ *
  * @param remote Current remote snapshot, if any.
  * @param state Persisted sync state.
  */
@@ -54,9 +58,15 @@ export function remoteChangedSinceState(
   remote: Snapshot | undefined,
   state: SyncState,
 ): boolean {
-  return remote != null
-    ? remote.id !== state.lastAppliedSnapshot
-    : state.lastAppliedSnapshot != null;
+  if (remote == null) {
+    return state.lastAppliedSnapshot != null;
+  }
+
+  if (remote.id === state.lastAppliedSnapshot) {
+    return false;
+  }
+
+  return !sameHashes(fileHashMap(remote), state.lastFileHashes);
 }
 
 /**

@@ -1,3 +1,8 @@
 import { recommended } from "@dbaida/eslint-config";
 
-export default recommended;
+export default [
+  ...recommended,
+  {
+    ignores: ["tests/*.mjs"],
+  },
+];
