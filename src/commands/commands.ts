@@ -41,6 +41,7 @@ import { setSyncFooter, syncDrift } from "./footer-status.js";
 import { initConfig } from "./init.js";
 import { SyncOperations } from "./operations.js";
 import { handleSecretsCommand } from "./secrets.js";
+import { setupCommand } from "./setup.js";
 
 /**
  * Parse and execute a /pisync command invocation.
@@ -78,6 +79,10 @@ async function runCommand(
       await initConfig(ctx);
 
       return;
+    case "setup":
+      await setupCommand(ctx, options);
+
+      return;
     case "config":
       await showConfig(ctx);
 
@@ -95,21 +100,15 @@ async function runCommand(
 
       return;
     case "push":
-      await withLock("push", async () => {
-        await new SyncOperations(ctx, options).push();
-      });
+      await runLockedSync("push", options, ctx);
 
       return;
     case "pull":
-      await withLock("pull", async () => {
-        await new SyncOperations(ctx, options).pull();
-      });
+      await runLockedSync("pull", options, ctx);
 
       return;
     case "sync":
-      await withLock("sync", async () => {
-        await new SyncOperations(ctx, options).syncBoth();
-      });
+      await runLockedSync("sync", options, ctx);
 
       return;
     case "history":
@@ -136,6 +135,24 @@ async function runCommand(
         "warning",
       );
   }
+}
+
+async function runLockedSync(
+  kind: "push" | "pull" | "sync",
+  options: CommandOptions,
+  ctx: ExtensionCommandContext,
+): Promise<void> {
+  await withLock(kind, async () => {
+    const operations = new SyncOperations(ctx, options);
+
+    if (kind === "push") {
+      await operations.push();
+    } else if (kind === "pull") {
+      await operations.pull();
+    } else {
+      await operations.syncBoth();
+    }
+  });
 }
 
 async function showConfig(ctx: ExtensionCommandContext): Promise<void> {

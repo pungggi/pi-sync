@@ -120,6 +120,16 @@ For GitHub HTTPS repositories, `/pisync init` can optionally run `gh auth setup-
 
 Environment overrides are also supported: `PI_SYNC_REPOSITORY` (or `PI_SYNC_REPO`), `PI_SYNC_BRANCH`, and `PI_SYNC_AUTO_SYNC`. Run `/pisync doctor` after setup to verify repository access and get auth-specific guidance.
 
+To change settings after init, run `/pisync setup`:
+
+```text
+/pisync setup                    # interactive walkthrough, Enter keeps current values
+/pisync setup autoSync=true      # set one or more settings directly
+/pisync setup branch=dev secrets=false
+```
+
+It validates keys and values, warns when a `PI_SYNC_*` environment override would mask a file value, and points you to `/pisync secrets setup` when secrets are enabled without a cached passphrase.
+
 ## Commands
 
 ```text

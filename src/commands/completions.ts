@@ -20,6 +20,13 @@ const SUBCOMMAND_COMPLETIONS: SubcommandCompletion[] = [
     keywords: ["config", "setup"],
   },
   {
+    value: "setup",
+    label: "setup [key=value ...]",
+    description:
+      "Change settings after init: repository, branch, autoSync, secrets.",
+    keywords: ["settings", "autosync", "configure"],
+  },
+  {
     value: "config",
     label: "config",
     description: "Show the effective repository, branch, and local paths.",
