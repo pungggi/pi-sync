@@ -3,7 +3,7 @@ import path from "node:path";
 
 import type { Snapshot } from "../domain/types.js";
 import { agentDir, safeJoin, toPosix } from "../utils/path-utils.js";
-import { createSnapshot, decodeBase64Strict, hashBuffer } from "./snapshot.js";
+import { contentHash, createSnapshot, decodeBase64Strict } from "./snapshot.js";
 
 /**
  *
@@ -42,7 +42,7 @@ export function preflightSnapshotApply(
     const normalized = validateSnapshotPath(file.path, remotePaths);
     const content = decodeBase64Strict(file.contentBase64, normalized);
 
-    if (hashBuffer(content) !== file.sha256) {
+    if (contentHash(content) !== file.sha256) {
       throw new Error(`Checksum mismatch in snapshot file: ${normalized}`);
     }
 

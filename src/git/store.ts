@@ -11,7 +11,7 @@ import {
 } from "../domain/constants.js";
 import type { Snapshot, SnapshotFile, SyncConfig } from "../domain/types.js";
 import {
-  hashBuffer,
+  contentHash,
   hashFiles,
   isDeniedPath,
   materializeSnapshot,
@@ -267,7 +267,7 @@ export class GitStore {
     return {
       path: relativePath,
       contentBase64: content.toString("base64"),
-      sha256: hashBuffer(content),
+      sha256: contentHash(content),
     };
   }
 

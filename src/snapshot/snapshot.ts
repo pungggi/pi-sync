@@ -115,6 +115,46 @@ export function hashBuffer(value: Buffer): string {
 }
 
 /**
+ * Reduce CRLF (0x0D 0x0A) sequences to LF in a buffer.
+ *
+ * @param value Buffer to normalize.
+ */
+function normalizeCrLf(value: Buffer): Buffer {
+  const parts: Buffer[] = [];
+  let start = 0;
+
+  for (let i = 0; i + 1 < value.length; i += 1) {
+    if (value[i] === 0x0d && value[i + 1] === 0x0a) {
+      parts.push(value.subarray(start, i));
+      start = i + 1;
+    }
+  }
+
+  if (parts.length === 0) {
+    return value;
+  }
+
+  parts.push(value.subarray(start));
+
+  return Buffer.concat(parts);
+}
+
+/**
+ * Hash file content for drift comparison with Windows line endings
+ * normalized away.
+ *
+ * Git's `core.autocrlf=true` (the Git for Windows default) stores CRLF
+ * working-tree files as LF blobs, so raw-byte hashes would flag every text
+ * file as changed on every push. Text content is hashed with CRLF reduced
+ * to LF; binary content (containing a NUL byte) is hashed raw.
+ *
+ * @param value File content from disk or a Git blob.
+ */
+export function contentHash(value: Buffer): string {
+  return hashBuffer(value.includes(0) ? value : normalizeCrLf(value));
+}
+
+/**
  * Hash a snapshot file list by path and hash.
  *
  * @param files Snapshot files to summarize.
@@ -188,7 +228,7 @@ async function addFile(
   results.push({
     path: relativePath,
     contentBase64: content.toString("base64"),
-    sha256: hashBuffer(content),
+    sha256: contentHash(content),
   });
 }
 
@@ -199,7 +239,7 @@ async function materializeFile(
   const target = safeJoin(root, file.path);
   const content = decodeBase64Strict(file.contentBase64, file.path);
 
-  if (hashBuffer(content) !== file.sha256) {
+  if (contentHash(content) !== file.sha256) {
     throw new Error(`Checksum mismatch in snapshot file: ${file.path}`);
   }
 
